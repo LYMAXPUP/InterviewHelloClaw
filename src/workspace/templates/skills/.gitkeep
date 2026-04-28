@@ -1,0 +1,18 @@
+"""Skills 目录模板 - 此目录用于存放 Skill 定义"""
+
+# Skills 目录结构说明：
+#
+# skills/
+# ├── skill-name/
+# │   ├── SKILL.md          # Skill 定义文件（必须）
+# │   └── scripts/          # Skill 相关脚本（可选）
+# │       └── script.py
+#
+# SKILL.md 格式：
+#
+# ---
+# name: skill-name
+# description: "Skill 的描述"
+# ---
+#
+# Skill 的详细说明和使用方法...

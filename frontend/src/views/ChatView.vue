@@ -64,6 +64,11 @@ const collapsedTools = ref<Set<number>>(new Set())
 // 默认所有工具都是展开的（用于新建的工具）
 const expandedTools = ref<Set<number>>(new Set())
 
+const quickPrompts = [
+  { text: '帮我查一下最近10天的邮件内容', color: '#0047FF', tint: '#E6EEFF' },
+  { text: '帮我分析求职进度', color: '#FF5C1A', tint: '#FFEDE3' },
+]
+
 // 消息分组（Slack 风格）
 const messageGroups = computed<MessageGroup[]>(() => {
   const groups: MessageGroup[] = []
@@ -105,16 +110,6 @@ const shouldShowLoadingIndicator = computed(() => {
 const hasGroupVisibleContent = (group: MessageGroup): boolean => {
   for (const msg of group.messages) {
     if (hasVisibleContent(msg)) {
-      return true
-    }
-  }
-  return false
-}
-
-// 检查消息组是否有文本内容
-const hasGroupTextContent = (group: MessageGroup): boolean => {
-  for (const msg of group.messages) {
-    if (hasTextContent(msg)) {
       return true
     }
   }
@@ -319,6 +314,9 @@ watch(
     // 如果正在初始化，跳过
     if (initializing.value) return
 
+    // 如果正在生成消息，跳过（防止切换页面时丢失正在生成的内容）
+    if (loading.value) return
+
     // 如果 session 没有实际变化，跳过
     if (newSession === oldSession) return
 
@@ -444,13 +442,6 @@ const hasVisibleTools = (msg: Message): boolean => {
     }
   }
   return false
-}
-
-// 检查消息组是否正在等待响应（用于隐藏 group-footer）
-const isGroupWaiting = (group: MessageGroup): boolean => {
-  if (group.role !== 'assistant' || !loading.value) return false
-  // 检查组内所有消息是否都没有文本内容
-  return group.messages.every(msg => !hasTextContent(msg))
 }
 
 // 停止生成
@@ -735,10 +726,13 @@ const createNewSession = async () => {
               </div>
             </div>
 
-            <!-- 组底部：名称和时间（加载等待时隐藏） -->
-            <div v-if="!isGroupWaiting(group)" class="group-footer">
+            <!-- 组底部：名称和时间 -->
+            <div class="group-footer">
               <span class="group-name">{{ group.role === 'user' ? '你' : assistantName }}</span>
               <span class="group-time">{{ formatTime(group.messages[group.messages.length - 1]?.timestamp || new Date()) }}</span>
+              <!-- 状态图标（仅助手） -->
+              <span v-if="group.role === 'assistant' && loading && groupIndex === messageGroups.length - 1" class="msg-status speaking">…</span>
+              <span v-else-if="group.role === 'assistant'" class="msg-status done">✓</span>
             </div>
           </div>
         </div>
@@ -762,8 +756,23 @@ const createNewSession = async () => {
               <span></span>
               <span></span>
             </div>
+            <div class="loading-hint">…</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 快捷提示 -->
+    <div class="chat-quick-prompts">
+      <div class="quick-prompts-inner">
+        <button
+          v-for="p in quickPrompts"
+          :key="p.text"
+          class="quick-prompt-btn"
+          @click="() => { inputMessage = p.text }"
+        >
+          {{ p.text }}
+        </button>
       </div>
     </div>
 
@@ -773,11 +782,11 @@ const createNewSession = async () => {
         <!-- 输入框 -->
         <Input.TextArea
           v-model:value="inputMessage"
-          placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
+          placeholder="问我任何求职相关的问题…  Enter 发送 / Shift+Enter 换行"
           :auto-size="{ minRows: 1, maxRows: 4 }"
           @press-enter="(e: KeyboardEvent) => { if (!e.shiftKey) { e.preventDefault(); sendMessage() } }"
         />
-        <!-- 按钮区域（固定宽度） -->
+        <!-- 按钮区域 -->
         <div class="input-actions">
           <!-- 新建会话按钮 -->
           <Button
@@ -835,23 +844,25 @@ const createNewSession = async () => {
   height: 100%;
   width: 100%;
   box-sizing: border-box;
-  background-color: var(--color-background);
+  background-color: #ffffff;
 }
 
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 32px 48px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  background: #ffffff;
+  position: relative;
 }
 
 /* 消息组样式 */
 .message-group {
   display: flex;
-  gap: 12px;
-  max-width: 85%;
+  gap: 16px;
+  max-width: 72%;
 }
 
 .message-group.user {
@@ -868,21 +879,22 @@ const createNewSession = async () => {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
+  margin-top: 2px;
 }
 
 .group-avatar img {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 5px;
 }
 
 .user-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
-  background-color: var(--color-primary);
+  border-radius: 5px;
+  background: #0047FF;
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -904,17 +916,23 @@ const createNewSession = async () => {
 }
 
 .message-text {
-  padding: 10px 14px;
-  border-radius: 12px;
-  background-color: var(--color-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  line-height: 1.6;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+  line-height: 1.65;
   word-wrap: break-word;
+  font-size: 14px;
+  color: #040404;
 }
 
 .message-group.user .message-text {
-  background-color: var(--color-primary-light);
-  border: 1px solid rgba(255, 92, 92, 0.2);
+  background: #FFEDE3;
+  color: #040404;
+  border: none;
+  border-radius: 14px;
+  border-top-right-radius: 4px;
 }
 
 /* Markdown 样式 */
@@ -931,6 +949,7 @@ const createNewSession = async () => {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
+  font-family: var(--font-family-mono);
 }
 
 .message-text :deep(pre) {
@@ -950,7 +969,7 @@ const createNewSession = async () => {
 .message-text :deep(ul),
 .message-text :deep(ol) {
   margin: 8px 0;
-  padding-left: 20px;
+  padding-left: 24px;
 }
 
 .message-text :deep(blockquote) {
@@ -962,7 +981,16 @@ const createNewSession = async () => {
 
 .message-text :deep(a) {
   color: var(--color-primary);
+  text-decoration: none;
+}
+
+.message-text :deep(a:hover) {
   text-decoration: underline;
+}
+
+.message-text :deep(strong) {
+  font-weight: 600;
+  color: #040404;
 }
 
 /* 图片样式 */
@@ -973,14 +1001,13 @@ const createNewSession = async () => {
   margin: 8px 0;
   display: block;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 0.15s ease;
 }
 
 .message-text :deep(img:hover) {
   transform: scale(1.02);
 }
 
-/* 图片容器（当图片单独出现时） */
 .message-text :deep(p:has(> img:only-child)) {
   margin: 0;
 }
@@ -997,12 +1024,28 @@ const createNewSession = async () => {
 .group-name {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #040404;
 }
 
 .group-time {
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
+}
+
+.msg-status {
+  margin-left: auto;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.msg-status.speaking {
+  color: #A3A3A3;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.msg-status.done {
+  color: #00B86B;
 }
 
 /* 空状态 */
@@ -1013,12 +1056,14 @@ const createNewSession = async () => {
   align-items: center;
   justify-content: center;
   gap: 16px;
+  position: absolute;
+  inset: 0;
 }
 
 .empty-icon {
-  width: 100px;
-  height: 100px;
-  opacity: 0.5;
+  width: 96px;
+  height: 96px;
+  opacity: 0.45;
 }
 
 .empty-icon.loading {
@@ -1027,41 +1072,41 @@ const createNewSession = async () => {
 
 @keyframes pulse {
   0%, 100% {
-    opacity: 0.3;
+    opacity: 0.25;
     transform: scale(0.95);
   }
   50% {
-    opacity: 0.6;
+    opacity: 0.5;
     transform: scale(1);
   }
 }
 
 .empty-hint {
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
   font-size: 14px;
 }
 
 /* 加载指示器 */
-.loading-group .message-bubble,
-.message-bubble:has(.loading-dots) {
-  padding: 14px 12px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
+.loading-group .message-bubble {
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 14px;
+  border-top-left-radius: 4px;
 }
 
 .loading-dots {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
 }
 
 .loading-dots span {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background-color: var(--color-primary);
-  animation: loading-pulse 1.4s ease-in-out infinite;
+  background-color: #FF5C1A;
+  animation: loading-pulse 0.8s ease-in-out infinite;
 }
 
 .loading-dots span:nth-child(2) {
@@ -1072,10 +1117,18 @@ const createNewSession = async () => {
   animation-delay: 0.4s;
 }
 
+.loading-hint {
+  text-align: right;
+  margin-top: 10px;
+  font-size: 16px;
+  color: #A3A3A3;
+  letter-spacing: 2px;
+}
+
 @keyframes loading-pulse {
   0%, 100% {
-    opacity: 0.4;
-    transform: scale(0.8);
+    opacity: 0.35;
+    transform: scale(0.75);
   }
   50% {
     opacity: 1;
@@ -1083,118 +1136,179 @@ const createNewSession = async () => {
   }
 }
 
+/* 快捷提示栏 */
+.chat-quick-prompts {
+  padding: 6px 48px 4px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.quick-prompts-inner {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.quick-prompt-btn {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 100px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-family: var(--font-family-base);
+}
+
+.quick-prompt-btn:hover {
+  transform: translateY(-1px);
+}
+
+.quick-prompt-btn:first-child {
+   background: #E6EEFF;
+   color: #0047FF;
+ }
+ 
+ .quick-prompt-btn:nth-child(2) {
+   background: #FFEDE3;
+   color: #FF5C1A;
+ }
+
 /* 输入区域 */
 .chat-input-wrapper {
-  padding: 16px 24px 32px;
-  background-color: var(--color-surface);
-  border-top: 1px solid var(--color-border);
+  padding: 4px 48px 24px;
+  flex-shrink: 0;
 }
 
 .chat-input {
   display: flex;
   gap: 12px;
   align-items: center;
-  max-width: 800px;
+  max-width: 1400px;
   margin: 0 auto;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
 }
 
 .chat-input :deep(.ant-input) {
   flex: 1;
-  border-radius: 16px;
-  padding: 10px 16px;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0;
   resize: none;
+  background: transparent !important;
+  font-size: 14px;
+  color: #040404;
+  line-height: 1.5;
+  box-shadow: none !important;
+  font-family: var(--font-family-base);
 }
 
-/* 按钮区域（固定宽度，防止输入框抖动） */
+.chat-input :deep(.ant-input:focus) {
+  box-shadow: none !important;
+}
+
+.chat-input :deep(.ant-input::placeholder) {
+  color: #A3A3A3;
+}
+
+/* 按钮区域 */
 .input-actions {
   flex-shrink: 0;
   display: flex;
-  gap: 12px;
+  gap: 8px;
   align-items: center;
-  width: 92px;
 }
 
 /* 新建会话按钮 */
 .input-actions .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #f8fafc;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
+  transition: all 0.15s ease;
 }
 
 .input-actions .icon-btn:hover {
-  background: var(--color-primary-light);
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  background: #FFEDE3;
+  border-color: #FF5C1A;
+  color: #FF5C1A;
 }
 
-/* 发送按钮 - 白底 + 黑色图标，输入后红底 + 白色图标 */
+/* 发送按钮 */
 .input-actions .send-btn {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   padding: 0;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-radius: 5px;
+  border: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-  color: #333;
+  transition: all 0.15s ease;
+  color: #A3A3A3;
+  background: #E5E5E5;
 }
 
 .input-actions .send-btn:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  background: #E5E5E5;
+  color: #A3A3A3;
 }
 
-/* 输入文字后：红底 + 白色图标 */
 .input-actions .send-btn.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #fff;
+  background: #FF5C1A;
+  color: #ffffff;
 }
 
 .input-actions .send-btn.active:hover {
-  background: var(--color-primary-hover);
-  border-color: var(--color-primary-hover);
+  background: #E84D0A;
+  transform: translateY(-1px);
 }
 
-/* 停止按钮 - 红底 + 白色圆角方块图标 */
+/* 停止按钮 */
 .input-actions .stop-btn {
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: none;
-  border-radius: 8px;
-  background: var(--color-primary);
+  border-radius: 5px;
+  background: #FF5C1A;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
 }
 
 .input-actions .stop-btn:hover {
-  background: var(--color-primary-hover);
+  background: #E84D0A;
+  transform: translateY(-1px);
 }
 
 .stop-icon {
   width: 14px;
   height: 14px;
   background: #fff;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 /* 工具调用卡片 */
-.tool-calls {
+.tool-cards {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1202,40 +1316,41 @@ const createNewSession = async () => {
 }
 
 .tool-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 13px;
-  transition: all 0.2s ease;
+  font-size: 12px;
+  transition: all 0.15s ease;
 }
 
-/* 执行中状态 - 龙虾红主题 */
+.tool-card:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
 .tool-card.running {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
+  border-color: #FF5C1A;
+  background: #FFEDE3;
 }
 
 .tool-card.running .tool-icon,
 .tool-card.running .tool-name {
-  color: var(--color-primary);
+  color: #FF5C1A;
 }
 
-/* 完成状态 - 灰色调 */
 .tool-card.done {
-  border-color: var(--color-border);
-  background: var(--color-surface);
+  border-color: rgba(0, 0, 0, 0.05);
+  background: #ffffff;
 }
 
-/* 失败状态 - 红色调 */
 .tool-card.error {
-  border-color: var(--color-primary);
-  background: #fff1f0;
+  border-color: #ef4444;
+  background: #fee2e2;
 }
 
 .tool-card.error .tool-icon,
 .tool-card.error .tool-name {
-  color: var(--color-primary);
+  color: #ef4444;
 }
 
 .tool-header {
@@ -1257,7 +1372,7 @@ const createNewSession = async () => {
 
 .tool-name {
   font-weight: 500;
-  color: var(--color-text);
+  color: #040404;
   flex: 1;
 }
 
@@ -1270,16 +1385,14 @@ const createNewSession = async () => {
 
 .collapse-indicator {
   font-size: 10px;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
   margin-left: auto;
-  transition: transform 0.2s ease;
 }
 
-/* 工具详情区域 */
 .tool-details {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--color-border);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.05);
 }
 
 .tool-args,
@@ -1293,7 +1406,7 @@ const createNewSession = async () => {
 
 .tool-detail-label {
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
   margin-bottom: 4px;
   font-weight: 500;
 }
@@ -1301,19 +1414,19 @@ const createNewSession = async () => {
 .tool-detail-content {
   margin: 0;
   padding: 8px;
-  background: rgba(0, 0, 0, 0.02);
+  background: #f8fafc;
   border-radius: 4px;
   font-size: 12px;
-  color: var(--color-text);
+  color: #040404;
   max-height: 150px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: ui-monospace, 'SF Mono', Monaco, 'Andale Mono', monospace;
+  font-family: var(--font-family-mono);
 }
 
 .step-info {
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
   font-size: 11px;
 }
 
@@ -1332,5 +1445,25 @@ const createNewSession = async () => {
 
 .image-preview-modal :deep(.ant-modal-body) {
   padding: 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .chat-messages {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .message-group {
+    max-width: 90%;
+  }
+
+  .chat-quick-prompts {
+    padding: 4px 16px 2px;
+  }
+
+  .chat-input-wrapper {
+    padding: 12px 16px 20px;
+  }
 }
 </style>

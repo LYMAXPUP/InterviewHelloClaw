@@ -8,7 +8,6 @@ import { SaveOutlined, FileTextOutlined, ReloadOutlined, ToolOutlined, PlusOutli
 
 const router = useRouter()
 
-// 配置文件相关
 const configs = ref<string[]>([])
 const selectedConfig = ref<ConfigFile | null>(null)
 const editingContent = ref('')
@@ -22,25 +21,21 @@ const resetOptions = ref({
   reset_global_config: false,
 })
 
-// Skills 相关
 const skills = ref<SkillInfo[]>([])
 const selectedSkill = ref<SkillContent | null>(null)
 const skillEditingContent = ref('')
 const skillsLoading = ref(false)
 const skillSaving = ref(false)
 
-// 创建 Skill 相关
 const showCreateSkillModal = ref(false)
 const newSkillName = ref('')
 const newSkillDescription = ref('')
 const skillCreating = ref(false)
 
-// 删除 Skill 相关
 const showDeleteSkillModal = ref(false)
 const skillToDelete = ref<SkillInfo | null>(null)
 const skillDeleting = ref(false)
 
-// 当前激活的标签页
 const activeTab = ref('configs')
 
 const configDescriptions: Record<string, string> = {
@@ -54,7 +49,6 @@ const configDescriptions: Record<string, string> = {
   BOOTSTRAP: '初始化引导',
 }
 
-// 获取配置文件的后缀
 const getConfigExtension = (name: string): string => {
   return name === 'CONFIG' ? '.json' : '.md'
 }
@@ -105,13 +99,11 @@ const selectSkill = async (skillName: string) => {
 
 const saveConfig = async () => {
   if (!selectedConfig.value) return
-
   saving.value = true
   try {
     await configApi.update(selectedConfig.value.name, editingContent.value)
     message.success('保存成功')
   } catch (error: any) {
-    // 透传后端错误信息
     const errorMsg = error?.response?.data?.detail || error?.message || '保存失败'
     message.error(errorMsg)
   } finally {
@@ -121,12 +113,10 @@ const saveConfig = async () => {
 
 const saveSkill = async () => {
   if (!selectedSkill.value) return
-
   skillSaving.value = true
   try {
     const res = await skillApi.update(selectedSkill.value.name, skillEditingContent.value)
     message.success(res.message)
-    // 重新加载 Skills 列表以获取更新后的信息
     await loadSkills()
   } catch (error: any) {
     const errorMsg = error?.response?.data?.detail || error?.message || '保存失败'
@@ -137,7 +127,6 @@ const saveSkill = async () => {
 }
 
 const confirmReset = () => {
-  // 重置选项为默认值
   resetOptions.value = {
     reset_sessions: true,
     reset_memory: true,
@@ -154,15 +143,10 @@ const handleReset = async () => {
     showResetModal.value = false
     selectedConfig.value = null
     editingContent.value = ''
-
-    // 如果清除了会话历史，也要清除 localStorage 中的上次会话 ID
     if (resetOptions.value.reset_sessions) {
       localStorage.removeItem('helloclaw.lastSessionId')
     }
-
     await loadConfigs()
-
-    // 导航到聊天页面并传递刷新参数，让 ChatView 重新获取 agent 信息
     router.push({ name: 'chat', query: { refresh: Date.now().toString() } })
   } catch (error) {
     message.error('重置失败')
@@ -183,14 +167,12 @@ const handleCreateSkill = async () => {
     message.error('Skill 名称不能为空')
     return
   }
-
   skillCreating.value = true
   try {
     const res = await skillApi.create(name, newSkillDescription.value)
     message.success(res.message)
     showCreateSkillModal.value = false
     await loadSkills()
-    // 自动选中新创建的 Skill
     await selectSkill(name)
   } catch (error: any) {
     const errorMsg = error?.response?.data?.detail || error?.message || '创建失败'
@@ -201,20 +183,18 @@ const handleCreateSkill = async () => {
 }
 
 const confirmDeleteSkill = (skill: SkillInfo, event: MouseEvent) => {
-  event.stopPropagation() // 阻止触发选择事件
+  event.stopPropagation()
   skillToDelete.value = skill
   showDeleteSkillModal.value = true
 }
 
 const handleDeleteSkill = async () => {
   if (!skillToDelete.value) return
-
   skillDeleting.value = true
   try {
     const res = await skillApi.delete(skillToDelete.value.name)
     message.success(res.message)
     showDeleteSkillModal.value = false
-    // 如果删除的是当前选中的 Skill，清除选中状态
     if (selectedSkill.value?.name === skillToDelete.value.name) {
       selectedSkill.value = null
       skillEditingContent.value = ''
@@ -237,19 +217,23 @@ onMounted(() => {
 
 <template>
   <div class="config-view">
-    <div class="config-header">
-      <h1>配置管理</h1>
-      <p>管理 Agent 的配置文件、身份信息和 Skills</p>
+    <div class="page-header">
+      <div class="header-left">
+        <h1 class="page-title">配置管理</h1>
+        <p class="page-subtitle">管理 Agent 的配置文件、身份信息和 Skills</p>
+      </div>
     </div>
 
     <Tabs v-model:activeKey="activeTab" class="config-tabs">
       <Tabs.TabPane key="configs" tab="配置文件">
         <div class="config-content">
-          <!-- 配置列表 -->
           <div class="config-list">
-            <Card :loading="loading" class="list-card">
+            <Card :loading="loading" class="list-card" :bordered="false">
               <template #title>
-                <FileTextOutlined /> 配置文件
+                <div class="card-title-row">
+                  <FileTextOutlined class="card-title-icon" />
+                  <span>配置文件</span>
+                </div>
               </template>
               <template #extra>
                 <button
@@ -278,12 +262,13 @@ onMounted(() => {
             </Card>
           </div>
 
-          <!-- 编辑区域 -->
           <div class="config-editor">
-            <Card v-if="selectedConfig" class="editor-card">
+            <Card v-if="selectedConfig" class="editor-card" :bordered="false">
               <template #title>
-                <span>{{ selectedConfig.name }}</span>
-                <Tag color="green" style="margin-left: 8px">{{ getConfigExtension(selectedConfig.name) }}</Tag>
+                <div class="editor-title-row">
+                  <span class="editor-name">{{ selectedConfig.name }}</span>
+                  <Tag color="green">{{ getConfigExtension(selectedConfig.name) }}</Tag>
+                </div>
               </template>
               <template #extra>
                 <Button
@@ -301,7 +286,7 @@ onMounted(() => {
               />
             </Card>
 
-            <Card v-else class="empty-card">
+            <Card v-else class="empty-card" :bordered="false">
               <Empty
                 description="请从左侧选择一个配置文件"
                 :image-style="{ height: '80px' }"
@@ -313,11 +298,13 @@ onMounted(() => {
 
       <Tabs.TabPane key="skills" tab="Skills">
         <div class="config-content">
-          <!-- Skills 列表 -->
           <div class="config-list">
-            <Card :loading="skillsLoading" class="list-card">
+            <Card :loading="skillsLoading" class="list-card" :bordered="false">
               <template #title>
-                <ToolOutlined /> Skills
+                <div class="card-title-row">
+                  <ToolOutlined class="card-title-icon" />
+                  <span>Skills</span>
+                </div>
               </template>
               <template #extra>
                 <button
@@ -356,12 +343,13 @@ onMounted(() => {
             </Card>
           </div>
 
-          <!-- Skills 编辑区域 -->
           <div class="config-editor">
-            <Card v-if="selectedSkill" class="editor-card">
+            <Card v-if="selectedSkill" class="editor-card" :bordered="false">
               <template #title>
-                <span>{{ selectedSkill.name }}</span>
-                <Tag color="purple" style="margin-left: 8px">SKILL.md</Tag>
+                <div class="editor-title-row">
+                  <span class="editor-name">{{ selectedSkill.name }}</span>
+                  <Tag color="purple">SKILL.md</Tag>
+                </div>
               </template>
               <template #extra>
                 <Button
@@ -383,7 +371,7 @@ onMounted(() => {
               />
             </Card>
 
-            <Card v-else class="empty-card">
+            <Card v-else class="empty-card" :bordered="false">
               <Empty
                 description="请从左侧选择一个 Skill"
                 :image-style="{ height: '80px' }"
@@ -405,20 +393,20 @@ onMounted(() => {
       okType="danger"
     >
       <div class="reset-warning">
-        <p style="color: #ff4d4f; font-weight: 500;">⚠️ 警告：此操作不可撤销！</p>
+        <p class="reset-warning-title">⚠️ 警告：此操作不可撤销！</p>
         <p>初始化将把所有配置文件恢复为默认模板，包括：</p>
         <ul>
           <li>AGENTS.md - 工作空间规则</li>
           <li>IDENTITY.md - 身份信息</li>
           <li>USER.md - 用户信息</li>
           <li>SOUL.md - 人格模板</li>
-          <li>MEMORY.md - 期记忆</li>
+          <li>MEMORY.md - 长期记忆</li>
           <li>HEARTBEAT.md - 心跳任务</li>
           <li>BOOTSTRAP.md - 初始化引导</li>
         </ul>
 
         <div class="reset-options">
-          <p style="font-weight: 500; margin-bottom: 8px;">额外清除选项：</p>
+          <p class="reset-options-title">额外清除选项：</p>
           <Checkbox v-model:checked="resetOptions.reset_sessions">
             清除所有会话历史
           </Checkbox>
@@ -430,7 +418,7 @@ onMounted(() => {
           </Checkbox>
         </div>
 
-        <p style="margin-top: 16px;">您确定要继续吗？</p>
+        <p class="reset-confirm-text">您确定要继续吗？</p>
       </div>
     </Modal>
 
@@ -476,9 +464,9 @@ onMounted(() => {
       okType="danger"
     >
       <div class="delete-warning">
-        <p style="color: #ff4d4f; font-weight: 500;">⚠️ 警告：此操作不可撤销！</p>
+        <p class="delete-warning-title">⚠️ 警告：此操作不可撤销！</p>
         <p>即将删除 Skill <strong>{{ skillToDelete?.name }}</strong></p>
-        <p style="color: #666;">该 Skill 的目录及所有文件将被永久删除。</p>
+        <p class="delete-warning-hint">该 Skill 的目录及所有文件将被永久删除。</p>
       </div>
     </Modal>
   </div>
@@ -490,24 +478,49 @@ onMounted(() => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  padding: 24px;
+  padding: 48px;
   box-sizing: border-box;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: #ffffff;
 }
 
-.config-header {
+.page-header {
   flex-shrink: 0;
   margin-bottom: 24px;
 }
 
-.config-header h1 {
-  margin: 0 0 8px;
-  font-size: 24px;
-  font-weight: 500;
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.config-header p {
+.page-title {
   margin: 0;
-  color: #999;
+  font-size: 20px;
+  font-weight: 700;
+  color: #040404;
+  line-height: 1.3;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: #575757;
+}
+
+.config-tabs {
+  flex: 1;
+  min-height: 0;
+}
+
+.config-tabs :deep(.ant-tabs-content) {
+  height: 100%;
+}
+
+.config-tabs :deep(.ant-tabs-tabpane) {
+  height: 100%;
 }
 
 .config-content {
@@ -530,6 +543,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .list-card :deep(.ant-card-body) {
@@ -538,30 +555,49 @@ onMounted(() => {
   overflow-y: auto;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.card-title-icon {
+  color: #FF5C1A;
+  font-size: 14px;
+}
+
 .config-item {
   cursor: pointer;
   padding: 12px 16px;
-  transition: all 0.2s;
-  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.15s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.config-item:last-child {
+  border-bottom: none;
 }
 
 .config-item:hover {
-  background-color: #f5f5f5;
+  background-color: #f8fafc;
 }
 
 .config-item.active {
-  background-color: #fff1f0;
-  border-left: 3px solid #ff4d4f;
+  background-color: #FFEDE3;
+  border-left: 3px solid #FF5C1A;
 }
 
 .config-item-content {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
 }
 
 .config-name {
   font-weight: 500;
+  font-size: 12px;
+  color: #040404;
 }
 
 .config-editor {
@@ -576,6 +612,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .editor-card :deep(.ant-card-head) {
@@ -589,12 +629,24 @@ onMounted(() => {
   flex-direction: column;
 }
 
+.editor-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #040404;
+}
+
 .editor-textarea {
   flex: 1;
   width: 100%;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 13px;
-  line-height: 1.6;
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  line-height: 1.7;
   resize: none;
 }
 
@@ -603,29 +655,41 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-/* 初始化按钮 - 纯红色背景 + 白色字体（可操作） */
 .reset-btn {
   padding: 4px 12px;
-  font-size: 13px;
+  font-size: 12px;
   border: none;
-  border-radius: 6px;
-  background: #ff4d4f;
+  border-radius: 5px;
+  background: #ef4444;
   color: #fff;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-weight: 500;
 }
 
 .reset-btn:hover {
-  background: #ff7875;
+  background: #f87171;
+  transform: translateY(-1px);
 }
 
 .reset-warning {
   padding: 8px 0;
+}
+
+.reset-warning-title,
+.delete-warning-title {
+  color: #ef4444;
+  font-weight: 600;
+  margin-bottom: 12px;
 }
 
 .reset-warning ul {
@@ -635,24 +699,34 @@ onMounted(() => {
 
 .reset-warning li {
   margin: 4px 0;
-  color: #666;
+  color: #575757;
+  font-size: 12px;
 }
 
 .reset-options {
   margin-top: 16px;
   padding: 12px;
-  background: #fafafa;
-  border-radius: 6px;
+  background: #f8fafc;
+  border-radius: 5px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-/* Skills 相关样式 */
+.reset-options-title,
+.reset-confirm-text {
+  font-weight: 500;
+  color: #040404;
+}
+
+.reset-confirm-text {
+  margin-top: 16px;
+}
+
 .skill-description {
   font-size: 12px;
-  color: #666;
-  line-height: 1.4;
+  color: #A3A3A3;
+  line-height: 1.5;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -662,48 +736,21 @@ onMounted(() => {
 
 .skill-path-info {
   padding: 8px 12px;
-  background: #f5f5f5;
+  background: #f8fafc;
   border-radius: 4px;
   margin-bottom: 12px;
   font-size: 12px;
 }
 
 .path-label {
-  color: #666;
+  color: #A3A3A3;
   margin-right: 8px;
 }
 
 .path-value {
-  color: #333;
+  color: #040404;
 }
 
-/* Skill 头部操作按钮组 */
-.skill-header-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* 新建按钮 - 绿色 */
-.add-btn {
-  padding: 4px 10px;
-  font-size: 13px;
-  border: none;
-  border-radius: 6px;
-  background: #52c41a;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.add-btn:hover {
-  background: #73d13d;
-}
-
-/* Skill 列表项头部 */
 .skill-item-header {
   display: flex;
   justify-content: space-between;
@@ -711,40 +758,43 @@ onMounted(() => {
   width: 100%;
 }
 
-/* 删除按钮 - 红色 */
+.add-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border: none;
+  border-radius: 5px;
+  background: #10b981;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.add-btn:hover {
+  background: #73d13d;
+  transform: translateY(-1px);
+}
+
 .delete-btn {
   padding: 2px 6px;
   font-size: 12px;
   border: none;
   border-radius: 4px;
   background: transparent;
-  color: #ff4d4f;
+  color: #ef4444;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
 }
 
 .delete-btn:hover {
-  background: #ff4d4f;
+  background: #ef4444;
   color: #fff;
 }
 
-/* Tabs 样式调整 */
-.config-tabs {
-  flex: 1;
-  min-height: 0;
-}
-
-.config-tabs :deep(.ant-tabs-content) {
-  height: 100%;
-}
-
-.config-tabs :deep(.ant-tabs-tabpane) {
-  height: 100%;
-}
-
-/* 创建 Skill 表单样式 */
 .create-skill-form {
   padding: 8px 0;
 }
@@ -757,19 +807,19 @@ onMounted(() => {
   display: block;
   font-weight: 500;
   margin-bottom: 8px;
+  color: #040404;
 }
 
 .required {
-  color: #ff4d4f;
+  color: #ef4444;
 }
 
 .form-hint {
-  font-size: 12px;
-  color: #999;
+  font-size: 10px;
+  color: #A3A3A3;
   margin-top: 4px;
 }
 
-/* 删除警告样式 */
 .delete-warning {
   padding: 8px 0;
 }
@@ -779,6 +829,31 @@ onMounted(() => {
 }
 
 .delete-warning strong {
-  color: #722ed1;
+  color: #FF5C1A;
+}
+
+.delete-warning-hint {
+  color: #A3A3A3;
+  font-size: 12px;
+}
+
+@media (max-width: 768px) {
+  .config-view {
+    padding: 16px;
+  }
+
+  .config-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .config-list {
+    width: 100%;
+    max-height: 260px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
 }
 </style>

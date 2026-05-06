@@ -343,7 +343,7 @@ class SkillManager:
         Returns:
             Skill 列表
         """
-        self.ensure_skills_dir_exists()
+        # 不自动创建 skills 目录，只加载已存在的 skills
         return self.loader.load_all()
 
     def get_skills_prompt(self, full_content: bool = False, force_reload: bool = True) -> str:
@@ -356,7 +356,7 @@ class SkillManager:
         Returns:
             Skills 提示词字符串
         """
-        self.ensure_skills_dir_exists()
+        # 不自动创建 skills 目录
         return self.loader.build_skills_prompt(full_content=full_content, force_reload=force_reload)
 
     def get_full_skill_prompt(self, name: str) -> Optional[str]:
@@ -370,7 +370,7 @@ class SkillManager:
         Returns:
             Skill 完整提示词，如果不存在返回 None
         """
-        self.ensure_skills_dir_exists()
+        # 不自动创建 skills 目录
         return self.loader.get_full_skill_prompt(name)
 
     def list_skills(self) -> List[Dict[str, Any]]:

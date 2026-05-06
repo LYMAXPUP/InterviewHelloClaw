@@ -5,7 +5,7 @@ from datetime import datetime
 import json
 
 from hello_agents.tools import Tool, ToolParameter, ToolResponse, tool_action
-from ..database.mongodb_config import MongoConfig
+from ...database.mongodb_config import MongoConfig
 
 
 class MongoDBTool(Tool):
@@ -70,7 +70,7 @@ class MongoDBTool(Tool):
     def _insert(
         self,
         collection: str,
-        document: str,
+        document: str = None,
         documents: str = None,
     ) -> str:
         """插入文档到指定集合

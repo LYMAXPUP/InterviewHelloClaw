@@ -4,16 +4,13 @@ MongoDB 配置模块 - 单例模式管理 MongoDB 连接
 """
 
 import os
-import subprocess
-import signal
-import sys
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ConfigurationError
 
 
 class MongoConfig:
     # 默认配置
-    _host = os.getenv("MONGO_HOST", "localhost")
+    _host = os.getenv("MONGO_HOST", "81.70.205.127")
     _port = int(os.getenv("MONGO_PORT", 27017))
     _db_name = os.getenv("MONGO_DB_NAME", "mydatabase")
     _username = os.getenv("MONGO_USERNAME")
@@ -22,8 +19,8 @@ class MongoConfig:
 
     # 连接参数
     _max_pool_size = 100
-    _connect_timeout = 5000  # 毫秒
-    _socket_timeout = 3000  # 毫秒
+    _connect_timeout = 10000  # 毫秒
+    _socket_timeout = 5000  # 毫秒
 
     # 单例模式
     _client = None
@@ -50,7 +47,7 @@ class MongoConfig:
                     maxPoolSize=cls._max_pool_size,
                     connectTimeoutMS=cls._connect_timeout,
                     socketTimeoutMS=cls._socket_timeout,
-                    serverSelectionTimeoutMS=5000
+                    serverSelectionTimeoutMS=10000
                 )
 
                 # 验证连接
@@ -142,13 +139,11 @@ class MongoConfig:
             return {"connected": False, "error": str(e)}
 
 
-MongoConfig.initialize()
-
 if __name__ == "__main__":
+    MongoConfig.initialize()
     client = MongoConfig()
-    stat = client.get_stats()
-    print(stat)
-    # collection = MongoConfig.get_collection("my_collection")
+    collection = MongoConfig.get_stats()
+    print(collection)
     # dic = {'name':'serena',"id":1532}
     # collection.insert_one(dic)
     # list_of_records = [{'name': 'amy', 'id': 1798},{'name': 'bob', 'id': 1631}]

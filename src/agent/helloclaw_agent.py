@@ -18,7 +18,7 @@ from hello_agents.tools import (
 
 from ..workspace.manager import WorkspaceManager
 from ..workspace.skills import SkillManager
-from ..tools import MemoryTool, ExecuteCommandTool, WebSearchTool, LoadSkillTool, ImageGenerationTool, MongoDBTool
+from ..tools import MemoryTool, ExecuteCommandTool, WebSearchTool, LoadSkillTool, ImageGenerationTool, MongoDBTool, TimeTool
 
 
 class HelloClawAgent:
@@ -271,6 +271,7 @@ class HelloClawAgent:
             outputs_path=self.workspace.outputs_path,  # 图片保存到 outputs 目录
         ))  # 图片生成工具
         registry.register_tool(MongoDBTool())  # MongoDB 数据库工具
+        registry.register_tool(TimeTool())  # 时间获取工具
 
         return registry
 

@@ -6,6 +6,7 @@ from .builtin.web_search import WebSearchTool
 from .builtin.load_skill import LoadSkillTool
 from .builtin.image_generation import ImageGenerationTool
 from .builtin.mongodb import MongoDBTool
+from .builtin.time import TimeTool
 
 __all__ = [
     "MemoryTool",
@@ -14,4 +15,5 @@ __all__ = [
     "LoadSkillTool",
     "ImageGenerationTool",
     "MongoDBTool",
+    "TimeTool",
 ]

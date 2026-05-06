@@ -20,7 +20,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from .api import chat, session, config, memory, skills
+from .api import chat, session, config, memory, skills, interviews
 from .workspace.manager import WorkspaceManager
 from .workspace.skills import SkillManager
 from .agent.helloclaw_agent import HelloClawAgent
@@ -75,9 +75,8 @@ async def lifespan(app: FastAPI):
     skill_manager = SkillManager(_workspace.workspace_path)
     skills.init_skill_api(skill_manager)
 
-    # 启动 MongoDB（如果配置了自动启动）
+    # 初始化 MongoDB 连接
     print("Initializing MongoDB...")
-    MongoConfig.start_mongodb()
     MongoConfig.initialize()
     print(f"MongoDB status: {'connected' if MongoConfig.is_connected() else 'not connected'}")
 
@@ -91,8 +90,8 @@ async def lifespan(app: FastAPI):
     print("HelloClaw Backend shutting down...")
 
     # 关闭 MongoDB 连接
-    MongoConfig.stop_mongodb()
-    print("MongoDB stopped")
+    MongoConfig.close()
+    print("MongoDB connection closed")
 
 
 app = FastAPI(
@@ -124,6 +123,7 @@ app.include_router(session.router, prefix="/api")
 app.include_router(config.router, prefix="/api")
 app.include_router(memory.router, prefix="/api")
 app.include_router(skills.router, prefix="/api")
+app.include_router(interviews.router, prefix="/api")
 
 
 @app.get("/api")

@@ -5,6 +5,7 @@ from .execute_command import ExecuteCommandTool
 from .web_search import WebSearchTool
 from .image_generation import ImageGenerationTool
 from .mongodb import MongoDBTool
+from .time import TimeTool
 
 __all__ = [
     "MemoryTool",
@@ -12,4 +13,5 @@ __all__ = [
     "WebSearchTool",
     "ImageGenerationTool",
     "MongoDBTool",
+    "TimeTool",
 ]

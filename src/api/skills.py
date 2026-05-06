@@ -92,10 +92,11 @@ async def get_skill_content(skill_name: str):
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' 不存在")
 
-    # 读取原始 SKILL.md 文件内容
-    skill_file = os.path.join(skill.path, "SKILL.md")
+    # skill.path 是相对于 workspace 的路径，需要转换为绝对路径
+    skill_dir = os.path.join(manager.workspace_path, skill.path)
+    skill_file = os.path.join(skill_dir, "SKILL.md")
     if not os.path.exists(skill_file):
-        raise HTTPException(status_code=404, detail=f"Skill 文件不存在")
+        raise HTTPException(status_code=404, detail=f"Skill 文件不存在: {skill_file}")
 
     with open(skill_file, "r", encoding="utf-8") as f:
         content = f.read()
@@ -117,7 +118,9 @@ async def update_skill_content(skill_name: str, request: SkillUpdateRequest):
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' 不存在")
 
-    skill_file = os.path.join(skill.path, "SKILL.md")
+    # skill.path 是相对于 workspace 的路径，需要转换为绝对路径
+    skill_dir = os.path.join(manager.workspace_path, skill.path)
+    skill_file = os.path.join(skill_dir, "SKILL.md")
 
     # 写入新内容
     with open(skill_file, "w", encoding="utf-8") as f:
@@ -222,7 +225,8 @@ async def delete_skill(skill_name: str):
     if not skill:
         raise HTTPException(status_code=404, detail=f"Skill '{skill_name}' 不存在")
 
-    skill_dir = skill.path
+    # skill.path 是相对于 workspace 的路径，需要转换为绝对路径
+    skill_dir = os.path.join(manager.workspace_path, skill.path)
 
     # 检查是否在 skills 目录下（安全检查）
     skills_base = manager.loader.skills_path

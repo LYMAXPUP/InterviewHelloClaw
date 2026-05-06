@@ -161,8 +161,8 @@ const hasVisibleContent = computed(() => {
 <style scoped>
 .chat-message {
   display: flex;
-  gap: 12px;
-  max-width: 85%;
+  gap: 16px;
+  max-width: 72%;
 }
 
 .chat-message.user {
@@ -179,21 +179,22 @@ const hasVisibleContent = computed(() => {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
+  margin-top: 2px;
 }
 
 .message-avatar img {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: 5px;
 }
 
 .user-avatar {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
-  background-color: var(--color-primary);
+  border-radius: 5px;
+  background-color: #0047FF;
   color: #fff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -215,17 +216,23 @@ const hasVisibleContent = computed(() => {
 }
 
 .message-text {
-  padding: 10px 14px;
-  border-radius: 12px;
-  background-color: var(--color-surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  line-height: 1.6;
+  padding: 16px 20px;
+  border-radius: 14px;
+  border-top-left-radius: 4px;
+  background-color: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  line-height: 1.65;
   word-wrap: break-word;
+  font-size: 14px;
+  color: #040404;
 }
 
 .chat-message.user .message-text {
-  background-color: var(--color-primary-light);
-  border: 1px solid rgba(255, 92, 92, 0.2);
+  background-color: #FFEDE3;
+  border: none;
+  border-radius: 14px;
+  border-top-right-radius: 4px;
+  color: #040404;
 }
 
 /* Markdown 样式 */
@@ -242,6 +249,7 @@ const hasVisibleContent = computed(() => {
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 13px;
+  font-family: var(--font-family-mono);
 }
 
 .message-text :deep(pre) {
@@ -265,15 +273,24 @@ const hasVisibleContent = computed(() => {
 }
 
 .message-text :deep(blockquote) {
-  border-left: 3px solid var(--color-primary);
+  border-left: 3px solid #FF5C1A;
   padding-left: 12px;
   margin: 8px 0;
-  color: var(--color-text-secondary);
+  color: #575757;
 }
 
 .message-text :deep(a) {
-  color: var(--color-primary);
+  color: #FF5C1A;
+  text-decoration: none;
+}
+
+.message-text :deep(a:hover) {
   text-decoration: underline;
+}
+
+.message-text :deep(strong) {
+  font-weight: 600;
+  color: #040404;
 }
 
 /* 消息元信息 */
@@ -288,51 +305,52 @@ const hasVisibleContent = computed(() => {
 .message-sender {
   font-size: 12px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #040404;
 }
 
 .message-time {
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
 }
 
 /* 工具调用卡片 */
 .tool-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 8px;
   padding: 8px 12px;
-  font-size: 13px;
-  transition: all 0.2s ease;
+  font-size: 12px;
+  transition: all 0.15s ease;
   margin-top: 8px;
 }
 
-/* 执行中状态 - 龙虾红主题 */
+.tool-card:hover {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
 .tool-card.running {
-  border-color: var(--color-primary);
-  background: var(--color-primary-light);
+  border-color: #FF5C1A;
+  background: #FFEDE3;
 }
 
 .tool-card.running .tool-icon,
 .tool-card.running .tool-name {
-  color: var(--color-primary);
+  color: #FF5C1A;
 }
 
-/* 完成状态 - 灰色调 */
 .tool-card.done {
-  border-color: var(--color-border);
-  background: var(--color-surface);
+  border-color: rgba(0, 0, 0, 0.05);
+  background: #ffffff;
 }
 
-/* 失败状态 - 红色调 */
 .tool-card.error {
-  border-color: var(--color-primary);
-  background: #fff1f0;
+  border-color: #ef4444;
+  background: #fee2e2;
 }
 
 .tool-card.error .tool-icon,
 .tool-card.error .tool-name {
-  color: var(--color-primary);
+  color: #ef4444;
 }
 
 .tool-header {
@@ -354,7 +372,7 @@ const hasVisibleContent = computed(() => {
 
 .tool-name {
   font-weight: 500;
-  color: var(--color-text);
+  color: #040404;
   flex: 1;
 }
 
@@ -367,16 +385,15 @@ const hasVisibleContent = computed(() => {
 
 .collapse-indicator {
   font-size: 10px;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
   margin-left: auto;
-  transition: transform 0.2s ease;
 }
 
 /* 工具详情区域 */
 .tool-details {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--color-border);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.05);
 }
 
 .tool-args,
@@ -390,7 +407,7 @@ const hasVisibleContent = computed(() => {
 
 .tool-detail-label {
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: #A3A3A3;
   margin-bottom: 4px;
   font-weight: 500;
 }
@@ -398,14 +415,14 @@ const hasVisibleContent = computed(() => {
 .tool-detail-content {
   margin: 0;
   padding: 8px;
-  background: rgba(0, 0, 0, 0.02);
+  background: #f8fafc;
   border-radius: 4px;
   font-size: 12px;
-  color: var(--color-text);
+  color: #040404;
   max-height: 150px;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: ui-monospace, 'SF Mono', Monaco, 'Andale Mono', monospace;
+  font-family: var(--font-family-mono);
 }
 </style>

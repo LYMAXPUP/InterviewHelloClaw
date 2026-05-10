@@ -756,7 +756,6 @@ const createNewSession = async () => {
               <span></span>
               <span></span>
             </div>
-            <div class="loading-hint">…</div>
           </div>
         </div>
       </div>
@@ -1046,6 +1045,14 @@ const createNewSession = async () => {
 
 .msg-status.done {
   color: #00B86B;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #00B86B;
+  border-radius: 50%;
+  font-size: 11px;
 }
 
 /* 空状态 */
@@ -1147,9 +1154,7 @@ const createNewSession = async () => {
   display: flex;
   gap: 6px;
   overflow-x: auto;
-  max-width: 1400px;
   width: 100%;
-  margin: 0 auto;
 }
 
 .quick-prompt-btn {
@@ -1189,8 +1194,6 @@ const createNewSession = async () => {
   display: flex;
   gap: 12px;
   align-items: center;
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 10px;
   background: #ffffff;
   border: 1px solid rgba(0, 0, 0, 0.1);

@@ -78,7 +78,7 @@ def clean_text(value: str) -> str:
     return value.strip()
 
 
-def extract_text_preview(message: email.message.Message, max_chars: int = 160) -> str:
+def extract_text_preview(message: email.message.Message, max_chars: int = 500) -> str:
     text_candidates: list[str] = []
 
     if message.is_multipart():

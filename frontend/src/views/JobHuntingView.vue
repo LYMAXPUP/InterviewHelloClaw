@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, Teleport, Transition, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, Teleport, Transition, nextTick } from 'vue'
 import { Button, Modal, Form, FormItem, Input, Select, DatePicker, message, Spin, Tag } from 'ant-design-vue'
 import { PlusOutlined, ReloadOutlined, ZoomInOutlined, ZoomOutOutlined, DeleteOutlined } from '@ant-design/icons-vue'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -29,16 +29,17 @@ const editForm = ref<InterviewUpdateData>({
   start_time: '',
   interview_type: '',
   review: '',
+  status: '',
 })
 
 const STAGE_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  '简历筛选': { label: '简历', color: '#94a3b8', bgColor: '#f1f5f9' },
+  '简历筛选': { label: '简历筛选', color: '#94a3b8', bgColor: '#f1f5f9' },
   '笔试': { label: '笔试', color: '#3b82f6', bgColor: '#dbeafe' },
   '一面': { label: '一面', color: '#f59e0b', bgColor: '#fef3c7' },
   '二面': { label: '二面', color: '#f97316', bgColor: '#ffedd5' },
-  '三面': { label: '三面', color: '#fb7185', bgColor: '#f3e8ff' },
+  '三面': { label: '三面', color: '#ec4899', bgColor: '#fce7f3' },
   '四面': { label: '四面', color: '#a855f7', bgColor: '#faf5ff' },
-  'HR面': { label: 'HR面', color: '#06b6d4', bgColor: '#cffafe' },
+  'HR面': { label: 'HR面', color: '#8b5cf6', bgColor: '#ede9fe' },
   'Offer': { label: 'Offer', color: '#10b981', bgColor: '#d1fae5' },
 }
 
@@ -51,6 +52,12 @@ const interviewTypeOptions = [
   { label: '四面', value: '四面' },
   { label: 'HR面', value: 'HR面' },
   { label: 'Offer', value: 'Offer' },
+]
+
+const statusOptions = [
+  { label: '通过', value: 'PASS', color: '#10b981', bg: '#ecfdf5' },
+  { label: '未通过', value: 'FAIL', color: '#ef4444', bg: '#fef2f2' },
+  { label: '待定', value: 'DOING', color: '#6366f1', bg: '#eff6ff' },
 ]
 
 const pxPerDay = ref(16)
@@ -84,10 +91,13 @@ const companyApplications = computed<CompanyApplication[]>(() => {
     companyMap.get(key)!.stages.push(interview)
   })
 
-  return Array.from(companyMap.values()).map(app => ({
-    ...app,
-    stages: app.stages.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
-  })).sort((a, b) => {
+  return Array.from(companyMap.values()).map(app => {
+    const sortedStages = [...app.stages].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+    return {
+      ...app,
+      stages: sortedStages
+    }
+  }).sort((a, b) => {
     const aDate = a.stages.length > 0 ? new Date(a.stages[0].start_time).getTime() : 0
     const bDate = b.stages.length > 0 ? new Date(b.stages[0].start_time).getTime() : 0
     return aDate - bDate
@@ -119,15 +129,15 @@ const totalDays = computed(() => {
 
 const totalWidth = computed(() => totalDays.value * pxPerDay.value)
 
-const today = new Date('2026-04-30')
+const today = ref(new Date())
 
 const todayX = computed(() => {
-  const days = dayjs(today).diff(dayjs(dateRange.value.start), 'day')
+  const days = dayjs(today.value).diff(dayjs(dateRange.value.start), 'day')
   return days * pxPerDay.value + pxPerDay.value / 2
 })
 
 const todayInRange = computed(() => {
-  return today >= dateRange.value.start && today <= dateRange.value.end
+  return today.value >= dateRange.value.start && today.value <= dateRange.value.end
 })
 
 const months = computed(() => {
@@ -176,6 +186,7 @@ function openReviewModal(interview: InterviewRecord) {
     start_time: interview.start_time,
     interview_type: interview.interview_type,
     review: interview.review || '',
+    status: interview.status || 'DOING',
   }
   if (interview.start_time) {
     editFormDate.value = dayjs(interview.start_time)
@@ -327,8 +338,27 @@ function cancelEditPosition() {
   editingPosition.value = null
 }
 
+let updateTodayTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(async () => {
   await loadData()
+  
+  // 设置定时器，每天检查并更新 today
+  const updateToday = () => {
+    const newToday = new Date()
+    if (today.value.toDateString() !== newToday.toDateString()) {
+      today.value = newToday
+    }
+  }
+  
+  // 每分钟检查一次
+  updateTodayTimer = setInterval(updateToday, 60 * 1000)
+})
+
+onUnmounted(() => {
+  if (updateTodayTimer) {
+    clearInterval(updateTodayTimer)
+  }
 })
 </script>
 
@@ -340,9 +370,6 @@ onMounted(async () => {
         <p class="page-subtitle">跟踪和管理各公司的面试流程进展</p>
       </div>
       <div class="header-right">
-        <Button class="refresh-btn" @click="loadData" :loading="loading">
-          <template #icon><ReloadOutlined /></template>
-        </Button>
         <Button type="primary" @click="openAddModal">
           <template #icon><PlusOutlined /></template>
           添加流程
@@ -468,9 +495,10 @@ onMounted(async () => {
                   <div v-if="app.stages.length > 1" class="connecting-line" :style="{ left: `${getX(app.stages[0].start_time)}px`, width: `${getX(app.stages[app.stages.length - 1].start_time) - getX(app.stages[0].start_time)}px` }"></div>
                   <div v-for="stage in app.stages" :key="stage.unique_id" class="stage-dot" :style="{ left: `${getX(stage.start_time) - 9}px` }" @click="openReviewModal(stage)" @mouseenter="onStageMouseEnter($event, stage, app)" @mouseleave="onStageMouseLeave">
                     <div v-if="!stage.status || stage.status === 'DOING'" class="pending-ring" :style="{ background: (STAGE_CONFIG[stage.interview_type]?.bgColor || '#f1f5f9'), borderColor: (STAGE_CONFIG[stage.interview_type]?.color || '#94a3b8') }"></div>
-                    <div class="dot-main" :style="{ background: stage.status === 'FAIL' ? '#ef4444' : (!stage.status || stage.status === 'DOING' ? '#ffffff' : (STAGE_CONFIG[stage.interview_type]?.color || '#94a3b8')), border: (!stage.status || stage.status === 'DOING' ? `2.5px dashed ${STAGE_CONFIG[stage.interview_type]?.color || '#94a3b8'}` : (stage.status === 'FAIL' ? '2.5px solid #fca5a5' : '2.5px solid white')), boxShadow: `0 0 0 2px ${stage.status === 'FAIL' ? '#fee2e2' : (!stage.status || stage.status === 'DOING' ? (STAGE_CONFIG[stage.interview_type]?.bgColor || '#f1f5f9') : (STAGE_CONFIG[stage.interview_type]?.bgColor || '#f1f5f9'))}` }">
+                    <div class="dot-main" :style="{ background: stage.status === 'FAIL' ? '#ef4444' : (!stage.status || stage.status === 'DOING' ? '#ffffff' : (STAGE_CONFIG[stage.interview_type]?.color || '#94a3b8')), border: (!stage.status || stage.status === 'DOING' ? `2.5px dashed ${STAGE_CONFIG[stage.interview_type]?.color || '#94a3b8'}` : '2.5px solid white'), boxShadow: `0 0 0 2px ${stage.status === 'FAIL' ? '#fee2e2' : (!stage.status || stage.status === 'DOING' ? (STAGE_CONFIG[stage.interview_type]?.bgColor || '#f1f5f9') : (STAGE_CONFIG[stage.interview_type]?.bgColor || '#f1f5f9'))}` }">
                       <span :style="{ color: (!stage.status || stage.status === 'DOING' ? (STAGE_CONFIG[stage.interview_type]?.color || '#94a3b8') : 'white') }">{{ STAGE_CONFIG[stage.interview_type]?.label?.slice(0, 2) || '面' }}</span>
                     </div>
+                    <div v-if="stage.status === 'FAIL'" class="fail-cross">✕</div>
                   </div>
                 </div>
               </div>
@@ -495,7 +523,7 @@ onMounted(async () => {
         <div v-if="hoveredPoint" class="chart-tooltip" :style="{ position: 'fixed', left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y}px`, transform: 'translate(-50%, -100%)' }">
           <div class="tooltip-content">
             <div class="tooltip-header">
-              <div class="tooltip-type" :style="{ background: STAGE_CONFIG[hoveredPoint.stage.interview_type]?.color || '#94a3b8' }"></div>
+              <div class="tooltip-type" :style="{ background: hoveredPoint.stage.status === 'FAIL' ? '#ef4444' : (STAGE_CONFIG[hoveredPoint.stage.interview_type]?.color || '#94a3b8') }"></div>
               <span class="tooltip-stage">{{ STAGE_CONFIG[hoveredPoint.stage.interview_type]?.label || hoveredPoint.stage.interview_type }}</span>
               <Tag :color="getStatusTag(hoveredPoint.stage.status).color" class="tooltip-status">
                 {{ getStatusTag(hoveredPoint.stage.status).text }}
@@ -572,6 +600,24 @@ onMounted(async () => {
             />
           </FormItem>
         </div>
+        <FormItem label="状态">
+          <div class="status-options">
+            <div
+              v-for="opt in statusOptions"
+              :key="opt.value"
+              class="status-option"
+              :class="{ active: editForm.status === opt.value }"
+              :style="{
+                background: editForm.status === opt.value ? opt.bg : '#f8fafc',
+                borderColor: editForm.status === opt.value ? opt.color : '#e2e8f0',
+                color: editForm.status === opt.value ? opt.color : '#64748b'
+              }"
+              @click="editForm.status = opt.value"
+            >
+              {{ opt.label }}
+            </div>
+          </div>
+        </FormItem>
         <FormItem label="复盘总结">
           <Input.TextArea
             v-model:value="editForm.review"
@@ -687,6 +733,8 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: flex-end;
   flex-shrink: 0;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .header-left {
@@ -752,6 +800,8 @@ onMounted(async () => {
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   flex-shrink: 0;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .stat-card {
@@ -1112,6 +1162,17 @@ onMounted(async () => {
   user-select: none;
 }
 
+.fail-cross {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  font-weight: bold;
+  color: #ef4444;
+  line-height: 1;
+}
+
 .empty-state {
   flex: 1;
   display: flex;
@@ -1239,6 +1300,32 @@ onMounted(async () => {
 .form-col {
   flex: 1;
   min-width: 0;
+}
+
+.status-options {
+  display: flex;
+  gap: 10px;
+}
+
+.status-option {
+  flex: 1;
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.status-option:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.status-option.active {
+  font-weight: 600;
 }
 
 .edit-form-actions,

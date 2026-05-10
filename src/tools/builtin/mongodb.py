@@ -14,11 +14,16 @@ class MongoDBTool(Tool):
     可展开为多个子工具：
     - mongo_insert: 插入文档（单条或多条）
     - mongo_find: 查询文档
+    - mongo_find_one: 查询单条文档
     - mongo_update: 更新文档
     - mongo_delete: 删除文档
+    - mongo_count: 统计文档数量
+    - mongo_bulk_upsert: 批量更新或插入文档（存在则更新，不存在则插入）
     - mongo_list_collections: 列出所有集合
     - mongo_create_collection: 创建集合
+    - mongo_drop_collection: 删除集合
     - mongo_stats: 获取数据库统计信息
+    - mongo_aggregate: 聚合查询
     """
 
     def __init__(self):
@@ -496,3 +501,62 @@ class MongoDBTool(Tool):
             return f"JSON 解析错误: {e}"
         except Exception as e:
             return f"聚合查询失败: {e}"
+
+    @tool_action("mongo_bulk_upsert", "批量更新或插入文档")
+    def _bulk_upsert(
+        self,
+        collection: str,
+        documents: str,
+        key_field: str = "unique_id",
+    ) -> str:
+        """批量更新或插入文档（存在则更新，不存在则插入）
+
+        Args:
+            collection: 集合名称
+            documents: 文档列表（JSON 数组格式字符串）
+            key_field: 用于判断唯一性的字段名，默认为 unique_id
+        """
+        # 检查连接
+        conn_check = self._ensure_connected()
+        if conn_check:
+            return conn_check.text
+
+        try:
+            coll = MongoConfig.get_collection(collection)
+
+            # 解析文档列表
+            docs_list = json.loads(documents)
+            if not isinstance(docs_list, list):
+                return "documents 参数必须是 JSON 数组格式"
+
+            if not docs_list:
+                return "文档列表为空，无需操作"
+
+            # 构建 bulk_write 操作列表
+            from pymongo import ReplaceOne
+
+            operations = []
+            for doc in docs_list:
+                if key_field not in doc:
+                    return f"文档缺少唯一键字段 '{key_field}'"
+                operations.append(
+                    ReplaceOne(
+                        {key_field: doc[key_field]},
+                        doc,
+                        upsert=True
+                    )
+                )
+
+            # 执行批量操作
+            result = coll.bulk_write(operations)
+
+            # 统计结果
+            inserted = len(result.upserted_ids) if result.upserted_ids else 0
+            modified = result.modified_count
+
+            return f"成功处理 {len(docs_list)} 条文档到集合 '{collection}'：新增 {inserted} 条，更新 {modified} 条"
+
+        except json.JSONDecodeError as e:
+            return f"JSON 解析错误: {e}"
+        except Exception as e:
+            return f"批量 upsert 失败: {e}"

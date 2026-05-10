@@ -9,7 +9,7 @@ pip install -r requirements.txt
 # 配置文件
 ```
 # 编辑.env填写API Key
-cp .env.example .env
+vim .env
 ```
 
 # 运行项目
